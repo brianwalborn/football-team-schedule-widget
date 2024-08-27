@@ -167,7 +167,7 @@ class Team {
   async downloadLogo() {
     let fm = FileManager.local()
     let dir = fm.documentsDirectory()
-    let path = fm.joinPath(dir, `${this.id}_${this.abbreviation}_x`)
+    let path = fm.joinPath(dir, `${this.id}_${this.abbreviation}`)
 
     if (fm.fileExists(path)) {
       return fm.readImage(path)
@@ -207,13 +207,8 @@ class Team {
 }
 
 class Main {
-  constructor() {
-//     this.validAbbreviations = ['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LAR', 'LAC', 'LV', 'MIA', 'MIN', 'NE', 'NO', 'NYJ', 'NYG', 'PHI', 'PIT', 'SEA', 'SF', 'TB', 'TEN', 'WSH']
-  }
-
   async execute() {
     if (!args.widgetParameter) { throw 'Please provide a team abbreviation (Long tap > Edit Widget > Parameter)' }
-//     else if (this.validAbbreviations.indexOf(args.widgetParameter.toUpperCase()) < 0) { throw `Please provide a valid team abbreviation ('${args.widgetParameter}' is invalid)` }
 
     let team = new Team()
 
