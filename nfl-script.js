@@ -104,6 +104,7 @@ class Display {
     gradient.colors = [GRADIENT_OVERLAY_TOP, GRADIENT_OVERLAY_BOTTOM]
 
     this.widget.setPadding(5, 5, 5, 5)
+    this.widget.backgroundColor = new Color(backgroundColor)
     this.widget.backgroundImage = draw.getImage()
     this.widget.backgroundGradient = gradient
   }
