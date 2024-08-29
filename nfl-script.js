@@ -1,3 +1,16 @@
+const DEBUG = false
+const DEBUG_TEAM = "cle"
+const DEVICE_HEIGHT = Device.screenSize().height
+const DEVICE_WIDTH = Device.screenSize().width
+const FONT_BODY = Font.systemFont(10)
+const FONT_COLOR = Color.white()
+const FONT_TITLE = Font.boldSystemFont(14)
+const GRADIENT_OVERLAY_TOP = Color.dynamic(new Color("#fefefe", 0.3), new Color("#2c2c2c", 0.3))
+const GRADIENT_OVERLAY_BOTTOM = Color.dynamic(new Color("#fefefe", 0.7), new Color("#2c2c2c", 0.7))
+const TEAMS_API_BASE_URL = "https://site.api.espn.com"
+const TEAMS_API_PATH = "apis/site/v2/sports/football/nfl/teams"
+const TEAM_PRIMARY_COLOR_BACKGROUND = ["ARI", "BUF", "CHI", "JAX", "KC", "MIN", "PIT"]
+
 class Display {
   constructor() {
     this.widget = new ListWidget()
@@ -6,12 +19,12 @@ class Display {
   addTextToStack(stack, text) {
     let line = stack.addText(text)
 
-    line.textColor = Color.white()
-    line.font = Font.regularMonospacedSystemFont(10)
+    line.textColor = FONT_COLOR
+    line.font = FONT_BODY
   }
 
   async create(team) {
-    this.initializeDisplay(team.color, team.logo)
+    this.initializeDisplay(TEAM_PRIMARY_COLOR_BACKGROUND.includes(team.abbreviation.toUpperCase()) ? team.color : team.alternateColor, team.logo)
     this.formatTitleStack(team)
 
     let wrapperStack = this.formatWrapperStack()
@@ -55,15 +68,16 @@ class Display {
     titleStack.layoutVertically()
 
     let titleText = titleStack.addStack()
-    let titleString = `${team.schedule.year} ${team.displayName}`
+    let titleString = team.displayName
 
     if (team.schedule.recordSummary !== undefined) {
       titleString = titleString + ` (${team.schedule.recordSummary})`
     }
 
     let title = titleText.addText(titleString)
-    title.font = Font.mediumRoundedSystemFont(13)
-    title.textColor = Color.white()
+
+    title.font = FONT_TITLE
+    title.textColor = FONT_COLOR
     titleText.setPadding(2, 0, 0, 0)
   }
 
@@ -76,17 +90,21 @@ class Display {
   }
 
   initializeDisplay(backgroundColor, backgroundImage) {
-    const gradient = new LinearGradient()
-    var overlay_top = Color.dynamic(new Color("#fefefe", 0.4), new Color("#2c2c2c", 0.4))
-    var overlay_bottom = Color.dynamic(new Color("#fefefe", 1.0), new Color("#2c2c2c", 1.0))
+    let draw = new DrawContext()
+    let gradient = new LinearGradient()
+    let rect = new Rect(0, 0, DEVICE_HEIGHT * 2, DEVICE_WIDTH * 2)
 
-    this.widget.setPadding(10, 10, 10, 10)
-    this.widget.backgroundColor = new Color(backgroundColor)
-    this.widget.backgroundImage = backgroundImage
+    draw.size = new Size(DEVICE_WIDTH * 2, DEVICE_HEIGHT)
+    draw.strokeRect(rect)
+    draw.setFillColor(new Color(backgroundColor))
+    draw.fillRect(rect)
+    draw.drawImageAtPoint(backgroundImage, new Point(DEVICE_WIDTH / 2.75, DEVICE_HEIGHT / 5))
 
     gradient.locations = [0, 1]
-    gradient.colors = [overlay_top, overlay_bottom]
+    gradient.colors = [GRADIENT_OVERLAY_TOP, GRADIENT_OVERLAY_BOTTOM]
 
+    this.widget.setPadding(5, 5, 5, 5)
+    this.widget.backgroundImage = draw.getImage()
     this.widget.backgroundGradient = gradient
   }
 }
@@ -144,7 +162,7 @@ class Schedule {
   }
 
   async fetchTeamSchedule() {
-    let request = new Request(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${this.teamId}/schedule`)
+    let request = new Request(`${TEAMS_API_BASE_URL}/${TEAMS_API_PATH}/${this.teamId}/schedule`)
     let result = await request.loadJSON()
     let schedule = []
 
@@ -167,7 +185,7 @@ class Team {
   async downloadLogo() {
     let fm = FileManager.local()
     let dir = fm.documentsDirectory()
-    let path = fm.joinPath(dir, this.id)
+    let path = fm.joinPath(dir, `${this.id}_${this.abbreviation}_x`)
 
     if (fm.fileExists(path)) {
       return fm.readImage(path)
@@ -184,14 +202,9 @@ class Team {
   }
 
   async fetchTeamData(teamAbbreviation) {
-    let request = new Request('https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams')
+    let request = new Request(`${TEAMS_API_BASE_URL}/${TEAMS_API_PATH}/${teamAbbreviation}`)
     let result = await request.loadJSON()
-    let list = result.sports[0].leagues[0].teams
-    let team = null
-
-    for (let item in list) {
-      if (teamAbbreviation.toLowerCase() == list[item].team.abbreviation.toLowerCase()) { team = list[item].team }
-    }
+    let team = result.team
 
     if (team) {
       this.abbreviation = team.abbreviation
@@ -200,7 +213,7 @@ class Team {
       this.displayName = team.displayName
       this.id = team.id
       this.location = team.location
-      this.logoUrl = team.logos[1].href
+      this.logoUrl = team.logos[0].href
       this.logo = await this.downloadLogo()
       this.name = team.name
       this.nickname = team.nickname
@@ -217,14 +230,13 @@ class Main {
   }
 
   async execute() {
-    if (!args.widgetParameter) { throw 'Please provide a team abbreviation (Long tap > Edit Widget > Parameter)' }
-    else if (this.validAbbreviations.indexOf(args.widgetParameter.toUpperCase()) < 0) { throw `Please provide a valid team abbreviation ('${args.widgetParameter}' is invalid)` }
-
-    let team = new Team()
-
-    await team.fetchTeamData(args.widgetParameter)
+    if (!args.widgetParameter && !DEBUG) { throw 'Please provide a team abbreviation (Long tap > Edit Widget > Parameter)' }
+    else if (this.validAbbreviations.indexOf(DEBUG ? DEBUG_TEAM.toUpperCase() : args.widgetParameter.toUpperCase()) < 0) { throw `Please provide a valid team abbreviation ('${args.widgetParameter}' is invalid)` }
 
     let display = new Display()
+    let team = new Team()
+
+    await team.fetchTeamData(DEBUG ? DEBUG_TEAM : args.widgetParameter)
 
     await display.create(team)
 
