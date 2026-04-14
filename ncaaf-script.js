@@ -9,7 +9,7 @@ const CONFIG = {
   },
   ui: {
     padding: 3,
-    titleSpacing: 0,
+    titleSpacing: 2,
     spacing: 0,
     gameSplitIndex: 9,
     columnGap: 7,
@@ -25,8 +25,12 @@ const CONFIG = {
     record: Font.systemFont(9)
   },
   colors: {
-    text: Color.white(),
-    textSecondary: Color.dynamic(new Color("#ffffff", 0.7), new Color("#ffffff", 0.6)),
+    text: new Color("#f9fafb"),
+    textSecondary: new Color("#cbd5e1"),
+    textOnLight: new Color("#111827"),
+    textSecondaryOnLight: new Color("#374151"),
+    textOnDark: new Color("#f9fafb"),
+    textSecondaryOnDark: new Color("#cbd5e1"),
     gradientTop: Color.dynamic(new Color("#ffffff", 0.15), new Color("#000000", 0.2)),
     gradientBottom: Color.dynamic(new Color("#ffffff", 0.35), new Color("#000000", 0.4)),
     win: new Color("#4ade80"),
@@ -106,6 +110,10 @@ class Schedule {
     if (wins + losses + ties === 0) return null
     return ties > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`
   }
+
+  get displayYear() {
+    return this.seasonYear ?? this.year
+  }
 }
 
 // Fetches team metadata and caches logos locally.
@@ -156,6 +164,8 @@ class Team {
 class WidgetDisplay {
   constructor() {
     this.widget = new ListWidget()
+    this.primaryTextColor = CONFIG.colors.text
+    this.secondaryTextColor = CONFIG.colors.textSecondary
   }
 
   async render(team) {
@@ -186,6 +196,8 @@ class WidgetDisplay {
 
   setupBackground(backgroundColor) {
     // Paint a team-colored background and apply the overlay gradient.
+    this.setReadableTextColors(backgroundColor)
+
     const context = new DrawContext()
     const rect = new Rect(0, 0, DEVICE.width * 2, DEVICE.height * 2)
 
@@ -203,6 +215,30 @@ class WidgetDisplay {
     this.widget.backgroundGradient = gradient
   }
 
+  setReadableTextColors(backgroundColor) {
+    const isLightBackground = this.getRelativeLuminance(backgroundColor) > 0.62
+
+    if (isLightBackground) {
+      this.primaryTextColor = CONFIG.colors.textOnLight
+      this.secondaryTextColor = CONFIG.colors.textSecondaryOnLight
+      return
+    }
+
+    this.primaryTextColor = CONFIG.colors.textOnDark
+    this.secondaryTextColor = CONFIG.colors.textSecondaryOnDark
+  }
+
+  getRelativeLuminance(hexColor) {
+    const sanitizedHex = `${hexColor}`.replace("#", "").trim()
+    if (!/^[0-9a-fA-F]{6}$/.test(sanitizedHex)) return 0
+
+    const red = parseInt(sanitizedHex.slice(0, 2), 16)
+    const green = parseInt(sanitizedHex.slice(2, 4), 16)
+    const blue = parseInt(sanitizedHex.slice(4, 6), 16)
+
+    return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255
+  }
+
   addTitle(parentStack, team) {
     // Render title and record line above the schedule grid.
     const titleStack = parentStack.addStack()
@@ -215,7 +251,7 @@ class WidgetDisplay {
 
     const title = mainTitleStack.addText(team.displayName)
     title.font = CONFIG.fonts.title
-    title.textColor = CONFIG.colors.text
+    title.textColor = this.primaryTextColor
 
     if (team.schedule.recordSummary) {
       mainTitleStack.addSpacer(3)
@@ -226,12 +262,13 @@ class WidgetDisplay {
 
       const recordText = recordStack.addText(team.schedule.recordSummary)
       recordText.font = CONFIG.fonts.record
-      recordText.textColor = CONFIG.colors.textSecondary
+      recordText.textColor = this.secondaryTextColor
     }
 
-    const divider = titleStack.addText('─'.repeat(12))
+    const dividerPrefix = team.schedule.displayYear ? `${team.schedule.displayYear} ` : ""
+    const divider = titleStack.addText(`${dividerPrefix}${'─'.repeat(12)}`)
     divider.font = Font.systemFont(7)
-    divider.textColor = CONFIG.colors.textSecondary
+    divider.textColor = this.secondaryTextColor
     divider.lineLimit = 1
 
     titleStack.addSpacer(CONFIG.ui.titleSpacing)
@@ -270,7 +307,7 @@ class WidgetDisplay {
 
     const dateText = dateColumn.addText(game.date)
     dateText.font = CONFIG.fonts.date
-    dateText.textColor = CONFIG.colors.textSecondary
+    dateText.textColor = this.secondaryTextColor
     dateText.lineLimit = 1
 
     row.addSpacer(3)
@@ -281,7 +318,7 @@ class WidgetDisplay {
 
     const matchupText = matchupColumn.addText(game.matchup)
     matchupText.font = CONFIG.fonts.body
-    matchupText.textColor = CONFIG.colors.text
+    matchupText.textColor = this.primaryTextColor
     matchupText.lineLimit = 1
 
     row.addSpacer(5)
